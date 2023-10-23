@@ -39,7 +39,7 @@ Install rtx on macOS (other methods [here](#installation)):
 $ curl https://rtx.pub/rtx-latest-macos-arm64 > /usr/local/bin/rtx
 $ chmod +x /usr/local/bin/rtx
 $ rtx --version
-rtx 2023.10.2
+rtx 2023.10.3
 ```
 
 Hook rtx into your shell (pick the right one for your shell):
@@ -116,6 +116,7 @@ v20.0.0
 - [Configuration](#configuration)
   - [`.rtx.toml`](#rtxtoml)
     - [`[env]` - Arbitrary Environment Variables](#env---arbitrary-environment-variables)
+    - [`[plugins]` - Specify Custom Plugin Repo URLs](#plugins---specify-custom-plugin-repo-urls)
   - [Legacy version files](#legacy-version-files)
   - [`.tool-versions`](#tool-versions)
   - [Scopes](#scopes)
