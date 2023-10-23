@@ -1,13 +1,13 @@
 <div align="center">
-<a href="https://github.com/jdxcode/rtx"><picture>
+<a href="https://github.com/jdx/rtx"><picture>
   <source media="(prefers-color-scheme: dark)" width="617" srcset="./docs/logo-dark@2x.png">
   <img alt="rtx logo" width="617" src="./docs/logo-light@2x.png">
 </picture></a>
 <br/>
 <a href="https://crates.io/crates/rtx-cli"><img alt="Crates.io" src="https://img.shields.io/crates/v/rtx-cli?style=for-the-badge"></a>
-<a href="https://github.com/jdxcode/rtx/blob/main/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/jdxcode/rtx?color=%2320A920&style=for-the-badge"></a>
-<a href="https://github.com/jdxcode/rtx/actions/workflows/rtx.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/jdxcode/rtx/rtx.yml?color=%2320A920&style=for-the-badge"></a>
-<a href="https://codecov.io/gh/jdxcode/rtx"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/jdxcode/rtx?color=%2320A920&style=for-the-badge"></a>
+<a href="https://github.com/jdx/rtx/blob/main/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/jdx/rtx?color=%2320A920&style=for-the-badge"></a>
+<a href="https://github.com/jdx/rtx/actions/workflows/rtx.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/jdx/rtx/rtx.yml?color=%2320A920&style=for-the-badge"></a>
+<a href="https://codecov.io/gh/jdx/rtx"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/jdx/rtx?color=%2320A920&style=for-the-badge"></a>
 <a href="https://discord.gg/mABnUDvP57"><img alt="Discord" src="https://img.shields.io/discord/1066429325269794907?color=%23738ADB&style=for-the-badge"></a>
 <p><em>Polyglot runtime manager (asdf rust clone)</em></p>
 </div>
@@ -341,7 +341,7 @@ Supported platforms:
 - `linux`
 
 If you need something else, compile it with [cargo](#cargo).
-[Windows isn't currently supported.](https://github.com/jdxcode/rtx/discussions/66)
+[Windows isn't currently supported.](https://github.com/jdx/rtx/discussions/66)
 
 #### Homebrew
 
@@ -352,7 +352,7 @@ brew install rtx
 Alternatively, use the custom tap (which is updated immediately after a release)):
 
 ```
-brew install jdxcode/tap/rtx
+brew install jdx/tap/rtx
 ```
 
 #### MacPorts
@@ -379,7 +379,7 @@ cargo binstall rtx-cli
 Build from the latest commit in main:
 
 ```
-cargo install rtx-cli --git https://github.com/jdxcode/rtx --branch main
+cargo install rtx-cli --git https://github.com/jdx/rtx --branch main
 ```
 
 #### npm
@@ -399,10 +399,10 @@ npx rtx-cli exec python@3.11 -- python some_script.py
 
 #### GitHub Releases
 
-Download the latest release from [GitHub](https://github.com/jdxcode/rtx/releases).
+Download the latest release from [GitHub](https://github.com/jdx/rtx/releases).
 
 ```
-curl https://github.com/jdxcode/rtx/releases/download/v2023.8.2/rtx-v2023.8.2-linux-x64 > /usr/local/bin/rtx
+curl https://github.com/jdx/rtx/releases/download/v2023.10.3/rtx-v2023.10.3-linux-x64 > /usr/local/bin/rtx
 chmod +x /usr/local/bin/rtx
 ```
 
@@ -525,7 +525,7 @@ Given that `rtx` replaces both shell env `$PATH` and OS environ `PATH`, watch ou
 
 Adding a new shell is not hard at all since very little shell code is
 in this project.
-[See here](https://github.com/jdxcode/rtx/tree/main/src/shell) for how
+[See here](https://github.com/jdx/rtx/tree/main/src/shell) for how
 the others are implemented. If your shell isn't currently supported
 I'd be happy to help you get yours integrated.
 
@@ -563,7 +563,7 @@ This can also be useful in environments where rtx isn't activated
 that has lot more flexibility. It supports functionality that is not possible with `.tool-versions`, such as:
 
 - setting arbitrary env vars while inside the directory
-- passing options to plugins like `virtualenv='.venv'` for [rtx-python](https://github.com/jdxcode/rtx-python#virtualenv-support).
+- passing options to plugins like `virtualenv='.venv'` for [rtx-python](https://github.com/jdx/rtx-python#virtualenv-support).
 - specifying custom plugin urls
 
 Here is what an `.rtx.toml` looks like:
@@ -588,7 +588,7 @@ python = {version='3.10', virtualenv='.venv'}
 [plugins]
 # specify a custom repo url
 # note this will only be used if the plugin does not already exist
-python = 'https://github.com/jdxcode/rtx-python'
+python = 'https://github.com/jdx/rtx-python'
 
 [settings] # project-local settings
 verbose = true
@@ -663,6 +663,24 @@ _Note: `env_file` goes at the top of the file, above `[env]`._
 [env]
 NODE_ENV = false # unset a previously set NODE_ENV
 ```
+
+#### `[plugins]` - Specify Custom Plugin Repo URLs
+
+Use `[plugins]` to add/modify plugin shortnames. Note that this will only modify
+*new* plugin installations. Existing plugins can use any URL.
+
+```toml
+[plugins]
+elixir = "https://github.com/my-org/rtx-elixir.git"
+node = "https://github.com/my-org/rtx-node.git#DEADBEEF" # supports specific gitref
+```
+
+If you simply want to install a plugin from a specific URL once, it's better to use
+`rtx plugin install plugin <GIT_URL>`. Add this section to `.rtx.toml` if you want
+to share the plugin location/revision with other developers in your project.
+
+This is similar to [`RTX_SHORTHANDS`](https://github.com/jdx/rtx#rtx_shorthands_fileconfigrtxshorthandstoml)
+but doesn't require a separate file.
 
 ### Legacy version files
 
@@ -758,7 +776,7 @@ always_keep_install = false         # deleted on failure by default
 
 # configure how frequently (in minutes) to fetch updated plugin repository changes
 # this is updated whenever a new runtime is installed
-# (note: this isn't currently implemented but there are plans to add it: https://github.com/jdxcode/rtx/issues/128)
+# (note: this isn't currently implemented but there are plans to add it: https://github.com/jdx/rtx/issues/128)
 plugin_autoupdate_last_check_duration = '1 week' # set to 0 to disable updates
 
 # config files with these prefixes will be trusted by default
@@ -1083,7 +1101,7 @@ As well as these functions:
 
 - `exec(command: &str) -> String` – execute a command and return the output
 
-Templates are parsed with [tera](https://tera.netlify.app/docs)—which is quite powerful. For
+Templates are parsed with [tera](https://keats.github.io/tera/docs/)—which is quite powerful. For
 example, this snippet will get the directory name of the project:
 
 ```toml
@@ -1145,7 +1163,7 @@ Alternatively, you may be able to get tighter integration with a direnv extensio
 ## Core Plugins
 
 rtx comes with some plugins built into the CLI written in Rust. These are new and will improve over
-time. They can be easily overridden by installing a plugin with the same name, e.g.: `rtx plugin install python`.
+time. They can be easily overridden by installing a plugin with the same name, e.g.: `rtx plugin install python https://github.com/asdf-community/asdf-python`.
 
 You can see the core plugins with `rtx plugin ls --core`.
 
@@ -1264,7 +1282,7 @@ detected with your setup. If you submit a bug report, please include the output 
 
 ### Windows support?
 
-This is something we'd like to add! https://github.com/jdxcode/rtx/discussions/66
+This is something we'd like to add! https://github.com/jdx/rtx/discussions/66
 
 It's not a near-term goal and it would require plugin modifications, but it should be feasible.
 
@@ -1298,7 +1316,7 @@ points to:
 
 ```sh-session
 $ ls -l ~/.local/share/rtx/installs/node/20
-[...] /home/jdxcode/.local/share/rtx/installs/node/20 -> node-v20.0.0-linux-x64
+[...] /home/jdx/.local/share/rtx/installs/node/20 -> node-v20.0.0-linux-x64
 ```
 
 There are some exceptions to this, such as the following:
@@ -1449,14 +1467,14 @@ Using rtx in CI/CD is a great way to synchronize tool versions for dev/build.
 
 ### GitHub Actions
 
-Use [`jdxcode/rtx-action`](https://github.com/jdxcode/rtx-action):
+Use [`jdx/rtx-action`](https://github.com/jdx/rtx-action):
 
 ```yaml
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: jdxcode/rtx-action@v1
+      - uses: jdx/rtx-action@v1
       - run: node -v # will be the node version from `.rtx.toml`/`.tool-versions`
 ```
 
@@ -1530,7 +1548,7 @@ If you continue to struggle, you can also try using the [shims method](#shims).
 
 While making rtx compatible with direnv is, and will always be a major goal of this project, I also
 want rtx to be capable of replacing direnv if needed. This is why rtx includes support for managing
-env vars and [virtualenv](https://github.com/jdxcode/rtx-python#experimental-virtualenv-support)
+env vars and [virtualenv](https://github.com/jdx/rtx-python#experimental-virtualenv-support)
 for python using `.rtx.toml`.
 
 If you find you continue to need direnv, please open an issue and let me know what it is to see if
@@ -1776,7 +1794,7 @@ Examples:
 ```
 Output direnv function to use rtx inside direnv
 
-See https://github.com/jdxcode/rtx#direnv for more information
+See https://github.com/jdx/rtx#direnv for more information
 
 Because this generates the legacy files based on currently installed plugins,
 you should run this command after installing new plugins. Otherwise
@@ -2089,7 +2107,7 @@ Examples:
 ### `rtx outdated [TOOL@VERSION]...`
 
 ```
-[experimental] Shows outdated tool versions
+Shows outdated tool versions
 
 Usage: outdated [TOOL@VERSION]...
 
@@ -2221,7 +2239,7 @@ Examples:
 ```
 List all available remote plugins
 
-The full list is here: https://github.com/jdxcode/rtx/blob/main/src/default_shorthands.rs
+The full list is here: https://github.com/jdx/rtx/blob/main/src/default_shorthands.rs
 
 Examples:
   $ rtx plugins ls-remote
@@ -2513,7 +2531,7 @@ Examples:
 ### `rtx upgrade [TOOL@VERSION]...`
 
 ```
-[experimental] Upgrades outdated tool versions
+Upgrades outdated tool versions
 
 Usage: upgrade [TOOL@VERSION]...
 

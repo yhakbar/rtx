@@ -122,9 +122,10 @@ pub fn local(
         let tools = plugins.iter().map(|r| r.to_string()).join(" ");
         rtxprintln!(
             out,
-            "{} {}",
-            style(display_path(path)).dim(),
-            style(tools).bright().strikethrough()
+            "{} {} {}",
+            style("rtx").dim(),
+            display_path(path),
+            style(tools).cyan().strikethrough()
         );
     }
 
@@ -139,9 +140,10 @@ pub fn local(
         let tools = runtimes.iter().map(|r| r.to_string()).join(" ");
         rtxprintln!(
             out,
-            "{} {}",
-            style(display_path(path)).dim(),
-            style(tools).bright()
+            "{} {} {}",
+            style("rtx").dim(),
+            display_path(path),
+            style(tools).cyan()
         );
     } else {
         install_missing_runtimes(&mut config, cf.as_ref())?;
@@ -192,13 +194,13 @@ static AFTER_LONG_HELP: &str = color_print::cstr!(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, panic};
+    use std::panic;
 
     use pretty_assertions::assert_str_eq;
 
     use crate::cli::tests::grep;
     use crate::test::reset_config;
-    use crate::{assert_cli, assert_cli_err, assert_cli_snapshot, dirs};
+    use crate::{assert_cli, assert_cli_err, assert_cli_snapshot, dirs, file};
 
     #[test]
     fn test_local_remove() {
@@ -340,13 +342,13 @@ mod tests {
     where
         T: FnOnce() + panic::UnwindSafe,
     {
-        let _ = fs::remove_file(dirs::CURRENT.join(".test.rtx.toml"));
+        let _ = file::remove_file(dirs::CURRENT.join(".test.rtx.toml"));
         let cf_path = dirs::CURRENT.join(".test-tool-versions");
-        let orig = fs::read_to_string(&cf_path).unwrap();
+        let orig = file::read_to_string(&cf_path).unwrap();
 
         let result = panic::catch_unwind(test);
 
-        fs::write(cf_path, orig).unwrap();
+        file::write(cf_path, orig).unwrap();
 
         assert!(result.is_ok());
         reset_config();

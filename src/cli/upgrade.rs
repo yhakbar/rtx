@@ -17,7 +17,7 @@ use crate::toolset::{ToolVersion, ToolsetBuilder};
 use crate::ui::multi_progress_report::MultiProgressReport;
 use crate::ui::progress_report::ProgressReport;
 
-/// [experimental] Upgrades outdated tool versions
+/// Upgrades outdated tool versions
 #[derive(Debug, clap::Args)]
 #[clap(verbatim_doc_comment)]
 pub struct Upgrade {
@@ -30,11 +30,6 @@ pub struct Upgrade {
 
 impl Command for Upgrade {
     fn run(self, mut config: Config, _out: &mut Output) -> Result<()> {
-        if !config.settings.experimental {
-            return Err(color_eyre::eyre::eyre!(
-                "This command is experimental. Enable it with `rtx settings set experimental true`"
-            ));
-        }
         let mut ts = ToolsetBuilder::new()
             .with_args(&self.tool)
             .build(&mut config)?;
@@ -61,12 +56,12 @@ type GroupedToolVersions = Vec<(Arc<Tool>, Vec<(ToolVersion, String)>)>;
 
 impl Upgrade {
     fn upgrade(&self, config: &mut Config, outdated: OutputVec) -> Result<()> {
-        let mut mpr = MultiProgressReport::new(config.show_progress_bars());
+        let mpr = MultiProgressReport::new(config.show_progress_bars());
         ThreadPoolBuilder::new()
             .num_threads(config.settings.jobs)
             .build()?
             .install(|| -> Result<()> {
-                self.install_new_versions(config, &mut mpr, outdated)?;
+                self.install_new_versions(config, &mpr, outdated)?;
 
                 let ts = ToolsetBuilder::new().with_args(&self.tool).build(config)?;
                 shims::reshim(config, &ts).map_err(|err| eyre!("failed to reshim: {}", err))?;
@@ -79,7 +74,7 @@ impl Upgrade {
     fn install_new_versions(
         &self,
         config: &Config,
-        mpr: &mut MultiProgressReport,
+        mpr: &MultiProgressReport,
         outdated: OutputVec,
     ) -> Result<()> {
         let grouped_tool_versions: GroupedToolVersions = outdated

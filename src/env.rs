@@ -3,6 +3,7 @@ pub use std::env::*;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::duration::HOURLY;
 use itertools::Itertools;
 use log::LevelFilter;
 use once_cell::sync::Lazy;
@@ -44,11 +45,8 @@ pub static RTX_LOG_LEVEL: Lazy<LevelFilter> = Lazy::new(log_level);
 pub static RTX_LOG_FILE_LEVEL: Lazy<LevelFilter> = Lazy::new(log_file_level);
 pub static RTX_MISSING_RUNTIME_BEHAVIOR: Lazy<Option<String>> =
     Lazy::new(|| var("RTX_MISSING_RUNTIME_BEHAVIOR").ok());
-pub static RTX_QUIET: Lazy<bool> = Lazy::new(|| var_is_true("RTX_QUIET"));
-pub static RTX_DEBUG: Lazy<bool> = Lazy::new(|| var_is_true("RTX_DEBUG"));
-pub static RTX_TRACE: Lazy<bool> = Lazy::new(|| var_is_true("RTX_TRACE"));
 pub static RTX_VERBOSE: Lazy<bool> =
-    Lazy::new(|| *RTX_DEBUG || *RTX_TRACE || var_is_true("RTX_VERBOSE"));
+    Lazy::new(|| *RTX_LOG_LEVEL > LevelFilter::Info || var_is_true("RTX_VERBOSE"));
 pub static RTX_JOBS: Lazy<usize> = Lazy::new(|| {
     var("RTX_JOBS")
         .ok()
@@ -59,13 +57,25 @@ pub static RTX_FETCH_REMOTE_VERSIONS_TIMEOUT: Lazy<Duration> = Lazy::new(|| {
     var_duration("RTX_FETCH_REMOTE_VERSIONS_TIMEOUT").unwrap_or(Duration::from_secs(10))
 });
 
+/// duration that remote version cache is kept for
+/// for "fast" commands (represented by PREFER_STALE), these are always
+/// cached. For "slow" commands like `rtx ls-remote` or `rtx install`:
+/// - if RTX_FETCH_REMOTE_VERSIONS_CACHE is set, use that
+/// - if RTX_FETCH_REMOTE_VERSIONS_CACHE is not set, use HOURLY
+pub static RTX_FETCH_REMOTE_VERSIONS_CACHE: Lazy<Option<Duration>> = Lazy::new(|| {
+    if *PREFER_STALE {
+        None
+    } else {
+        Some(var_duration("RTX_FETCH_REMOTE_VERSIONS_CACHE").unwrap_or(HOURLY))
+    }
+});
+
 /// true if inside a script like bin/exec-env or bin/install
 /// used to prevent infinite loops
 pub static __RTX_SCRIPT: Lazy<bool> = Lazy::new(|| var_is_true("__RTX_SCRIPT"));
 pub static __RTX_DIFF: Lazy<EnvDiff> = Lazy::new(get_env_diff);
 pub static CI: Lazy<bool> = Lazy::new(|| var_is_true("CI"));
 pub static PREFER_STALE: Lazy<bool> = Lazy::new(|| prefer_stale(&ARGS));
-
 /// essentially, this is whether we show spinners or build output on runtime install
 pub static PRISTINE_ENV: Lazy<HashMap<String, String>> =
     Lazy::new(|| get_pristine_env(&__RTX_DIFF, vars().collect()));
@@ -326,6 +336,15 @@ fn prefer_stale(args: &[String]) -> bool {
 }
 
 fn log_level() -> LevelFilter {
+    if var_is_true("RTX_QUIET") {
+        set_var("RTX_LOG_LEVEL", "warn");
+    }
+    if var_is_true("RTX_DEBUG") {
+        set_var("RTX_LOG_LEVEL", "debug");
+    }
+    if var_is_true("RTX_TRACE") {
+        set_var("RTX_LOG_LEVEL", "trace");
+    }
     for (i, arg) in ARGS.iter().enumerate() {
         if arg == "--" {
             break;
@@ -339,27 +358,29 @@ fn log_level() -> LevelFilter {
             }
         }
         if arg == "--debug" {
-            set_var("RTX_DEBUG", "1");
+            set_var("RTX_LOG_LEVEL", "debug");
         }
         if arg == "--trace" {
+            set_var("RTX_LOG_LEVEL", "trace");
+        }
+    }
+    let log_level = var("RTX_LOG_LEVEL")
+        .unwrap_or_default()
+        .parse::<LevelFilter>()
+        .unwrap_or(LevelFilter::Info);
+    // set RTX_DEBUG/RTX_TRACE for plugins to use
+    match log_level {
+        LevelFilter::Trace => {
             set_var("RTX_TRACE", "1");
+            set_var("RTX_DEBUG", "1");
         }
-    }
-    let log_level = var("RTX_LOG_LEVEL").unwrap_or_default();
-    match log_level.parse::<LevelFilter>() {
-        Ok(level) => level,
-        _ => {
-            if *RTX_TRACE {
-                LevelFilter::Trace
-            } else if *RTX_DEBUG {
-                LevelFilter::Debug
-            } else if *RTX_QUIET {
-                LevelFilter::Warn
-            } else {
-                LevelFilter::Info
-            }
+        LevelFilter::Debug => {
+            set_var("RTX_DEBUG", "1");
         }
+        _ => {}
     }
+
+    log_level
 }
 
 fn log_file_level() -> LevelFilter {
