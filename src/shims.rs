@@ -67,7 +67,7 @@ fn which_shim(config: &mut Config, bin_name: &str) -> Result<PathBuf> {
     Err(eyre!("{} is not a valid shim", bin_name))
 }
 
-pub fn reshim(config: &mut Config, ts: &Toolset) -> Result<()> {
+pub fn reshim(config: &Config, ts: &Toolset) -> Result<()> {
     let _lock = LockFile::new(&dirs::SHIMS)
         .with_callback(|l| {
             trace!("reshim callback {}", l.display());
@@ -158,9 +158,9 @@ fn list_executables_in_dir(dir: &Path) -> Result<HashSet<String>> {
 
 fn make_shim(target: &Path, shim: &Path) -> Result<()> {
     if shim.exists() {
-        fs::remove_file(shim)?;
+        file::remove_file(shim)?;
     }
-    fs::write(
+    file::write(
         shim,
         formatdoc! {r#"
         #!/bin/sh

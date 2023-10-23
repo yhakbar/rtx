@@ -5,7 +5,7 @@ the "experimental" setting is "true" and there isn't a git plugin installed name
 
 If you want to use [asdf-python](https://github.com/asdf-community/asdf-python) or [rtx-python](https://github.com/rtx-plugins/rtx-python) then use `rtx plugins install python GIT_URL`.
 
-The code for this is inside of the rtx repository at [`./src/plugins/core/python.rs`](https://github.com/jdxcode/rtx/blob/main/src/plugins/core/python.rs).
+The code for this is inside of the rtx repository at [`./src/plugins/core/python.rs`](https://github.com/jdx/rtx/blob/main/src/plugins/core/python.rs).
 
 ## Usage
 
@@ -26,10 +26,15 @@ $ python3.11 -V
 3.11.0
 ```
 
+## Requirements
+
+rtx uses [python-build](https://github.com/pyenv/pyenv/tree/master/plugins/python-build) (part of pyenv) to install python runtimes, you need to ensure its [dependencies](https://github.com/pyenv/pyenv/wiki#suggested-build-environment) are installed before installing python.
+
+
 ## Configuration
 
 `python-build` already has a [handful of settings](https://github.com/pyenv/pyenv/tree/master/plugins/python-build), in
-additional to that `rtx-node` has a few extra configuration variables:
+additional to that `rtx-python` has a few extra configuration variables:
 
 - `RTX_PYENV_REPO` [string]: the default is `https://github.com/pyenv/pyenv.git`
 - `RTX_PYTHON_PATCH_URL` [string]: A url to a patch file to pass to python-build.

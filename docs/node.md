@@ -6,7 +6,7 @@ git plugin installed named "node".
 If you want to use [asdf-nodejs](https://github.com/asdf-vm/asdf-nodejs) or
 [rtx-node](https://github.com/rtx-plugins/rtx-nodejs) then run `rtx plugins install node GIT_URL`.
 
-The code for this is inside the rtx repository at [`./src/plugins/core/node.rs`](https://github.com/jdxcode/rtx/blob/main/src/plugins/core/node.rs).
+The code for this is inside the rtx repository at [`./src/plugins/core/node.rs`](https://github.com/jdx/rtx/blob/main/src/plugins/core/node.rs).
 
 ## Usage
 
@@ -18,6 +18,12 @@ $ rtx use -g node@20
 ```
 
 Behind the scenes, rtx uses [`node-build`](https://github.com/nodenv/node-build) to install pre-compiled binaries and compile from source if necessary. You can check its [README](https://github.com/nodenv/node-build/blob/master/README.md) for additional settings and some troubleshooting.
+
+
+## Requirements
+
+rtx uses [node-build](https://github.com/nodenv/node-build) to install node runtimes, you need to ensure the [dependencies](https://github.com/nodenv/node-build/wiki#suggested-build-environment) are installed before installing node.
+
 
 ## Configuration
 
@@ -85,5 +91,5 @@ rtx ls-remote node
 ## "nodejs" -> "node" Alias
 
 You cannot install/use a plugin named "nodejs". If you attempt this, rtx will just renamed it to 
-"node". See the [FAQ](https://github.com/jdxcode/rtx#what-is-the-difference-between-nodejs-and-node-or-golang-and-go)
+"node". See the [FAQ](https://github.com/jdx/rtx#what-is-the-difference-between-nodejs-and-node-or-golang-and-go)
 for an explanation.

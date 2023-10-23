@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
-use std::fs;
+use std::fs::{self};
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::{eyre, Result};
+use indoc::formatdoc;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde_derive::{Deserialize, Serialize};
@@ -13,13 +14,11 @@ use crate::cache::CacheManager;
 use crate::cli::version::{ARCH, OS};
 use crate::cmd::CmdLineRunner;
 use crate::config::{Config, Settings};
-use crate::duration::DAILY;
-use crate::env::PREFER_STALE;
 use crate::plugins::core::CorePlugin;
 use crate::plugins::{Plugin, PluginName};
 use crate::toolset::{ToolVersion, ToolVersionRequest};
 use crate::ui::progress_report::ProgressReport;
-use crate::{file, hash, http};
+use crate::{env, file, hash, http};
 
 #[derive(Debug)]
 pub struct JavaPlugin {
@@ -31,7 +30,6 @@ pub struct JavaPlugin {
 impl JavaPlugin {
     pub fn new(name: PluginName) -> Self {
         let core = CorePlugin::new(name);
-        let fresh_duration = if *PREFER_STALE { None } else { Some(DAILY) };
         let java_metadata_ga_cache_filename =
             format!("java_metadata_ga_{}_{}.msgpack.z", os(), arch());
         let java_metadata_ea_cache_filename =
@@ -40,11 +38,11 @@ impl JavaPlugin {
             java_metadata_ea_cache: CacheManager::new(
                 core.cache_path.join(java_metadata_ea_cache_filename),
             )
-            .with_fresh_duration(fresh_duration),
+            .with_fresh_duration(*env::RTX_FETCH_REMOTE_VERSIONS_CACHE),
             java_metadata_ga_cache: CacheManager::new(
                 core.cache_path.join(java_metadata_ga_cache_filename),
             )
-            .with_fresh_duration(fresh_duration),
+            .with_fresh_duration(*env::RTX_FETCH_REMOTE_VERSIONS_CACHE),
             core,
         }
     }
@@ -77,6 +75,7 @@ impl JavaPlugin {
             })
         })
     }
+
     fn fetch_remote_versions(&self) -> Result<Vec<String>> {
         let versions = self
             .fetch_java_metadata("ga")?
@@ -136,6 +135,7 @@ impl JavaPlugin {
         }
         self.move_to_install_path(tv, m)
     }
+
     fn move_to_install_path(&self, tv: &ToolVersion, m: &JavaMetadata) -> Result<()> {
         let basedir = tv
             .download_path()
@@ -143,6 +143,7 @@ impl JavaPlugin {
             .find(|e| e.as_ref().unwrap().file_type().unwrap().is_dir())
             .unwrap()?
             .path();
+        let contents_dir = basedir.join("Contents").clone();
         let source_dir = match m.vendor.as_str() {
             "zulu" | "liberica" => basedir,
             _ if os() == "macosx" => basedir.join("Contents").join("Home"),
@@ -154,8 +155,39 @@ impl JavaPlugin {
             let entry = entry?;
             let dest = tv.install_path().join(entry.file_name());
             trace!("moving {:?} to {:?}", entry.path(), &dest);
-            fs::rename(entry.path(), dest)?;
+            file::rename(entry.path(), dest)?;
         }
+
+        // move Contents dir to install path for macOS, if it exists
+        if os() == "macosx" && contents_dir.exists() {
+            file::create_dir_all(tv.install_path().join("Contents"))?;
+            for entry in fs::read_dir(contents_dir)? {
+                let entry = entry?;
+                // skip Home dir, so we can symlink it later
+                if entry.file_name() == "Home" {
+                    continue;
+                }
+                let dest = tv.install_path().join("Contents").join(entry.file_name());
+                trace!("moving {:?} to {:?}", entry.path(), &dest);
+                file::rename(entry.path(), dest)?;
+            }
+            file::make_symlink(
+                tv.install_path().as_path(),
+                &tv.install_path().join("Contents").join("Home"),
+            )?;
+            info!(
+                "{}",
+                formatdoc! {r#"
+                To enable macOS integration, run the following commands:
+                sudo mkdir /Library/Java/JavaVirtualMachines/{version}.jdk
+                sudo ln -s {path}/Contents /Library/Java/JavaVirtualMachines/{version}.jdk/Contents
+                "#,
+                    version = tv.version,
+                    path = tv.install_path().display(),
+                }
+            );
+        }
+
         Ok(())
     }
 
@@ -174,7 +206,12 @@ impl JavaPlugin {
     fn tv_to_java_version(&self, tv: &ToolVersion) -> String {
         if regex!(r"^\d").is_match(&tv.version) {
             // undo openjdk shorthand
-            format!("openjdk-{}", tv.version)
+            if tv.version.ends_with(".0.0") {
+                // undo rtx's full "*.0.0" version
+                format!("openjdk-{}", &tv.version[..tv.version.len() - 4])
+            } else {
+                format!("openjdk-{}", tv.version)
+            }
         } else {
             tv.version.clone()
         }
@@ -204,7 +241,7 @@ impl Plugin for JavaPlugin {
     }
 
     fn get_aliases(&self, _settings: &Settings) -> Result<BTreeMap<String, String>> {
-        let aliases = BTreeMap::from([("lts".into(), "17".into())]);
+        let aliases = BTreeMap::from([("lts".into(), "21".into())]);
         Ok(aliases)
     }
 
@@ -237,7 +274,7 @@ impl Plugin for JavaPlugin {
     }
 
     fn parse_legacy_file(&self, path: &Path, _settings: &Settings) -> Result<String> {
-        let contents = fs::read_to_string(path)?;
+        let contents = file::read_to_string(path)?;
         if path.file_name() == Some(".sdkmanrc".as_ref()) {
             let version = contents
                 .lines()
@@ -325,20 +362,19 @@ static JAVA_FILE_TYPES: Lazy<HashSet<String>> =
 
 fn download_java_metadata(release_type: &str) -> Result<Vec<JavaMetadata>> {
     let http = http::Client::new()?;
-    let resp = http
-        .get("https://joschi.github.io/java-metadata/metadata/all.json")
-        .send()?;
+    let url = format!(
+        "https://java.rtx.pub/metadata/{}/{}/{}.json",
+        release_type,
+        os(),
+        arch()
+    );
+    let resp = http.get(url).send()?;
     http.ensure_success(&resp)?;
 
     let metadata = resp
         .json::<Vec<JavaMetadata>>()?
         .into_iter()
-        .filter(|m| {
-            m.architecture == arch()
-                && m.os == os()
-                && JAVA_FILE_TYPES.contains(&m.file_type)
-                && m.release_type == release_type
-        })
+        .filter(|m| JAVA_FILE_TYPES.contains(&m.file_type))
         .collect();
     Ok(metadata)
 }

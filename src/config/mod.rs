@@ -191,7 +191,7 @@ impl Config {
             for (from, to) in plugin_aliases {
                 aliases
                     .entry(plugin.to_string())
-                    .or_insert_with(BTreeMap::new)
+                    .or_default()
                     .insert(from, to);
             }
         }
@@ -200,7 +200,7 @@ impl Config {
             for (from, to) in plugin_aliases {
                 aliases
                     .entry(plugin.clone())
-                    .or_insert_with(BTreeMap::new)
+                    .or_default()
                     .insert(from.clone(), to.clone());
             }
         }
@@ -265,17 +265,11 @@ fn load_rtxrc() -> Result<RtxToml> {
         }
         true => match RtxToml::from_file(&settings_path, is_trusted) {
             Ok(cf) => Ok(cf),
-            Err(err) => match RtxToml::migrate(&settings_path, is_trusted) {
-                Ok(cf) => Ok(cf),
-                Err(e) => {
-                    trace!("Error migrating config.toml: {:#}", e);
-                    Err(eyre!(
-                        "Error parsing {}: {:#}",
-                        &settings_path.display(),
-                        err
-                    ))
-                }
-            },
+            Err(err) => Err(eyre!(
+                "Error parsing {}: {:#}",
+                &settings_path.display(),
+                err
+            )),
         },
     }
 }
@@ -464,10 +458,7 @@ fn load_aliases(config_files: &ConfigMap) -> AliasMap {
     for config_file in config_files.values() {
         for (plugin, plugin_aliases) in config_file.aliases() {
             for (from, to) in plugin_aliases {
-                aliases
-                    .entry(plugin.clone())
-                    .or_insert_with(BTreeMap::new)
-                    .insert(from, to);
+                aliases.entry(plugin.clone()).or_default().insert(from, to);
             }
         }
     }

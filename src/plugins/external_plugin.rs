@@ -13,8 +13,7 @@ use once_cell::sync::Lazy;
 
 use crate::cache::CacheManager;
 use crate::config::{Config, Settings};
-use crate::duration::DAILY;
-use crate::env::{PREFER_STALE, RTX_FETCH_REMOTE_VERSIONS_TIMEOUT};
+use crate::env::RTX_FETCH_REMOTE_VERSIONS_TIMEOUT;
 use crate::env_diff::{EnvDiff, EnvDiffOperation};
 use crate::errors::Error::PluginNotInstalled;
 use crate::file::remove_all;
@@ -54,7 +53,6 @@ impl ExternalPlugin {
         let cache_path = dirs::CACHE.join(name);
         let toml_path = plugin_path.join("rtx.plugin.toml");
         let toml = RtxPluginToml::from_file(&toml_path).unwrap();
-        let fresh_duration = if *PREFER_STALE { None } else { Some(DAILY) };
         Self {
             name: name.into(),
             script_man: build_script_man(name, &plugin_path),
@@ -62,11 +60,11 @@ impl ExternalPlugin {
             installs_path: dirs::INSTALLS.join(name),
             cache: ExternalPluginCache::default(),
             remote_version_cache: CacheManager::new(cache_path.join("remote_versions.msgpack.z"))
-                .with_fresh_duration(fresh_duration)
+                .with_fresh_duration(*env::RTX_FETCH_REMOTE_VERSIONS_CACHE)
                 .with_fresh_file(plugin_path.clone())
                 .with_fresh_file(plugin_path.join("bin/list-all")),
             latest_stable_cache: CacheManager::new(cache_path.join("latest_stable.msgpack.z"))
-                .with_fresh_duration(fresh_duration)
+                .with_fresh_duration(*env::RTX_FETCH_REMOTE_VERSIONS_CACHE)
                 .with_fresh_file(plugin_path.clone())
                 .with_fresh_file(plugin_path.join("bin/latest-stable")),
             alias_cache: CacheManager::new(cache_path.join("aliases.msgpack.z"))
@@ -89,7 +87,7 @@ impl ExternalPlugin {
             .ok_or_else(|| eyre!("No repository found for plugin {}", self.name))
     }
 
-    fn install(&self, config: &Config, pr: &mut ProgressReport) -> Result<()> {
+    fn install(&self, config: &Config, pr: &ProgressReport) -> Result<()> {
         let repository = self.get_repo_url(config)?;
         let (repo_url, repo_ref) = Git::split_url_and_ref(&repository);
         debug!("install {} {:?}", self.name, repository);
@@ -234,8 +232,8 @@ impl ExternalPlugin {
 
     fn write_legacy_cache(&self, legacy_file: &Path, legacy_version: &str) -> Result<()> {
         let fp = self.legacy_cache_file_path(legacy_file);
-        fs::create_dir_all(fp.parent().unwrap())?;
-        fs::write(fp, legacy_version)?;
+        file::create_dir_all(fp.parent().unwrap())?;
+        file::write(fp, legacy_version)?;
         Ok(())
     }
 
@@ -381,7 +379,7 @@ impl Plugin for ExternalPlugin {
 
     fn get_remote_url(&self) -> Option<String> {
         let git = Git::new(self.plugin_path.to_path_buf());
-        git.get_remote_url()
+        git.get_remote_url().or_else(|| self.repo_url.clone())
     }
 
     fn current_sha_short(&self) -> Result<String> {
@@ -426,7 +424,7 @@ impl Plugin for ExternalPlugin {
         let mut pr = mpr.add();
         self.decorate_progress_bar(&mut pr, None);
         let _lock = self.get_lock(&self.plugin_path, force)?;
-        self.install(config, &mut pr)
+        self.install(config, &pr)
     }
 
     fn update(&self, gitref: Option<String>) -> Result<()> {
